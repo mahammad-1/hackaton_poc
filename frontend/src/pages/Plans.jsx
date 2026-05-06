@@ -44,9 +44,13 @@ export default function Plans() {
     setError(null)
     try {
       // POST /users/{id}/plans/generate — le backend analyse le diagnostic
-      const nouveauPlan = await generatePlan(userId)
-      // On ajoute le nouveau plan à la liste existante dans le store
-      setPlans([...plans, nouveauPlan])
+      const nouveauxPlans = await generatePlan(userId)
+      if (!Array.isArray(nouveauxPlans) || nouveauxPlans.length === 0) {
+        setError("Aucun plan n'a été généré. Vérifiez vos causes dans le diagnostic.")
+        return
+      }
+      // Recharge la liste depuis le backend pour rester synchronisé.
+      await chargerPlans()
     } catch (err) {
       setError(err.message)
     } finally {

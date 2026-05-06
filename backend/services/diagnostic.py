@@ -57,7 +57,7 @@ INTERVENTIONS = {
                     "écouter votre podcast préféré uniquement pendant cette tâche, "
                     "votre café/thé favori, etc. Le cerveau apprend à anticiper le plaisir."
                 ),
-                "duration_min": 0,
+                "duration_min": 1,
                 "difficulty": 1,
             },
             {
@@ -123,7 +123,7 @@ INTERVENTIONS = {
                     "Les rituels automatisent le début du travail et court-circuitent "
                     "la résistance décisionnelle."
                 ),
-                "duration_min": 0,
+                "duration_min": 1,
                 "difficulty": 2,
             },
         ],
@@ -167,7 +167,7 @@ INTERVENTIONS = {
                     "Planifiez votre tâche la plus difficile dans cette fenêtre. "
                     "Le soir, réservez uniquement les tâches routinières ou créatives légères."
                 ),
-                "duration_min": 0,
+                "duration_min": 1,
                 "difficulty": 1,
             },
             {

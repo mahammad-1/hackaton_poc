@@ -97,6 +97,19 @@ export function useUser() {
     }
   }
 
+  /** Vérifie si un email est déjà utilisé */
+  const checkEmailAvailability = async (email) => {
+    const normalizedEmail = (email || '').trim().toLowerCase()
+    if (!normalizedEmail) return { available: false, reason: 'empty' }
+    try {
+      const users = await listUsers()
+      const exists = users.some((u) => (u.email || '').toLowerCase() === normalizedEmail)
+      return { available: !exists, reason: exists ? 'taken' : 'ok' }
+    } catch {
+      return { available: false, reason: 'error' }
+    }
+  }
+
   /**
    * loadUser — Récupère un profil existant par son ID
    * Utile au chargement de l'app si l'userId est déjà dans localStorage
@@ -117,5 +130,5 @@ export function useUser() {
     }
   }
 
-  return { loading, error, register, login, loadUser }
+  return { loading, error, register, login, loadUser, checkEmailAvailability }
 }

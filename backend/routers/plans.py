@@ -31,19 +31,25 @@ def auto_generate_plans(user_id: int):
         plans = generate_action_plans(user_id, causes)
         inserted = []
         for p in plans:
+            safe_duration = max(1, int(p["duration_min"]))
             cur = conn.execute(
                 """INSERT INTO action_plans
                    (user_id, cause_id, title, protocol, description, duration_min, difficulty, status)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     p["user_id"], p["cause_id"], p["title"], p["protocol"],
-                    p["description"], p["duration_min"], p["difficulty"], p["status"],
+                    p["description"], safe_duration, p["difficulty"], p["status"],
                 ),
             )
             row = conn.execute(
                 "SELECT * FROM action_plans WHERE id = ?", (cur.lastrowid,)
             ).fetchone()
             inserted.append(dict(row))
+        # Corrige les anciennes données invalides qui auraient pu être insérées avant le correctif.
+        conn.execute(
+            "UPDATE action_plans SET duration_min = 1 WHERE user_id = ? AND duration_min < 1",
+            (user_id,),
+        )
         return inserted
 
 
