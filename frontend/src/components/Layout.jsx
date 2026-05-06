@@ -4,6 +4,7 @@
 
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import useAppStore from '../store/useAppStore.js'
+import DarkVeil from './DarkVeil.jsx'
 
 // Configuration des liens de navigation
 // Chaque item a : un chemin, un label et une icône SVG inline
@@ -67,14 +68,26 @@ export default function Layout() {
   }
 
   return (
-    <div className="relative flex min-h-screen">
+    <div className="relative flex h-screen overflow-hidden">
+      <div className="absolute inset-0">
+        <DarkVeil
+          hueShift={0}
+          noiseIntensity={0}
+          scanlineIntensity={0}
+          speed={0.5}
+          scanlineFrequency={0}
+          warpAmount={0.06}
+        />
+      </div>
+      <div className="absolute inset-0 bg-navy-950/60" />
+
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute -top-24 -left-24 h-72 w-72 rounded-full bg-accent/10 blur-3xl" />
         <div className="absolute top-0 right-0 h-80 w-80 rounded-full bg-energy-high/10 blur-3xl" />
       </div>
       {/* ── Sidebar ──────────────────────────────────────────────── */}
-      <aside className="relative z-10 w-64 flex-shrink-0 bg-navy-900/80 border-r border-navy-700/80
-                         backdrop-blur-md flex flex-col">
+      <aside className="relative z-10 w-64 h-screen flex-shrink-0 bg-navy-900/80 border-r border-navy-700/80
+                         backdrop-blur-md flex flex-col overflow-hidden">
         {/* Logo / Brand */}
         <div className="px-6 py-5 border-b border-navy-700">
           <div className="flex items-center gap-2.5">
@@ -111,7 +124,7 @@ export default function Layout() {
         </nav>
 
         {/* Profil utilisateur en bas de sidebar */}
-        <div className="mt-auto px-3 py-4 border-t border-navy-700 min-h-[170px] flex flex-col justify-between">
+        <div className="mt-auto px-3 py-4 border-t border-navy-700 flex flex-col gap-2">
           {/* Rubrique compte : hauteur fixe pour éviter les sauts de layout */}
           <div className="px-3 py-2 mb-2 rounded-xl border border-navy-700/80 bg-navy-800/50">
             <p className="text-[10px] uppercase tracking-wider text-muted mb-2">Compte</p>
@@ -151,7 +164,7 @@ export default function Layout() {
       </aside>
 
       {/* ── Zone de contenu principal ────────────────────────────── */}
-      <main className="relative z-10 flex-1 overflow-y-auto">
+      <main className="relative z-10 flex-1 h-screen overflow-y-auto">
         {/* <Outlet /> est remplacé par le composant de la route enfant active */}
         <Outlet />
       </main>

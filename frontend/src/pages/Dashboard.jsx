@@ -5,6 +5,7 @@ import { useEffect, useMemo } from 'react'
 import useAppStore from '../store/useAppStore.js'
 import { getStats, getLogs, createLog } from '../api/client.js'
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 
 export default function Dashboard() {
   const [loading, setLoading] = useState(false)
@@ -61,162 +62,83 @@ export default function Dashboard() {
     }
   }
 
-  /**
-   * Prépare les données du graphe : 30 dernières entrées de logs
-   * On utilise useMemo pour ne recalculer que si `logs` change
-   */
-  const donneesGraphe = useMemo(() => {
-    // Trie par date ascendante et prend les 30 dernières
-    return [...logs]
-      .sort((a, b) => new Date(a.date) - new Date(b.date))
-      .slice(-30)
-  }, [logs])
-
-  /**
-   * Données pour la heatmap annuelle
-   * On compte le nombre d'entrées par jour sur l'année en cours
-   */
-  const donneesHeatmap = useMemo(() => {
-    const anneeActuelle = new Date().getFullYear()
-    const comptes = {}
-
-    logs.forEach((log) => {
-      const dateStr = log.date?.split('T')[0]
-      if (dateStr && new Date(dateStr).getFullYear() === anneeActuelle) {
-        comptes[dateStr] = (comptes[dateStr] || 0) + 1
+  const bestStreakFromLogs = useMemo(() => {
+    if (!logs.length) return 0
+    const sorted = [...logs].sort((a, b) => new Date(a.date) - new Date(b.date))
+    let current = 0
+    let best = 0
+    sorted.forEach((log) => {
+      if (!log.procrastinated) {
+        current += 1
+        best = Math.max(best, current)
+      } else {
+        current = 0
       }
     })
-    return comptes
+    return best
   }, [logs])
 
-  /**
-   * Génère toutes les semaines de l'année courante pour la heatmap
-   * Retourne un tableau de semaines, chaque semaine étant un tableau de 7 dates
-   */
-  const semainesAnnee = useMemo(() => {
-    const semaines = []
-    const debut = new Date(new Date().getFullYear(), 0, 1) // 1er janvier
-    const fin = new Date()
+  const insightDuJour = useMemo(() => {
+    const latest = [...logs].sort((a, b) => new Date(b.date) - new Date(a.date))[0]
+    if (!latest) return "Commence par une entrée du jour pour débloquer des insights personnalisés."
+    if ((latest.focus ?? 0) <= 2) return "Focus bas : démarre par un bloc de 15 minutes sur ta tâche prioritaire."
+    if ((latest.energie ?? 0) <= 2) return "Énergie basse : fais une micro-pause active de 5 minutes avant de reprendre."
+    if (latest.procrastinated) return "Tu as procrastiné aujourd'hui : applique la règle des 2 minutes pour relancer l'élan."
+    return "Belle dynamique aujourd'hui. Profite du momentum pour finir une tâche importante."
+  }, [logs])
 
-    // On commence au premier lundi de l'année
-    const premierLundi = new Date(debut)
-    premierLundi.setDate(debut.getDate() - debut.getDay() + 1)
+  const latestLog = useMemo(
+    () => [...logs].sort((a, b) => new Date(b.date) - new Date(a.date))[0] || null,
+    [logs]
+  )
 
-    let dateCourante = new Date(premierLundi)
-    let semaine = []
+  const progressionJour = useMemo(() => {
+    if (!latestLog) return 0
+    const score = Math.round((((latestLog.energie || 0) + (latestLog.focus || 0)) / 10) * 100)
+    return Math.max(0, Math.min(100, score))
+  }, [latestLog])
 
-    while (dateCourante <= fin) {
-      semaine.push(new Date(dateCourante))
-      if (semaine.length === 7) {
-        semaines.push(semaine)
-        semaine = []
+  const prochaineAction = useMemo(() => {
+    if (!latestLog) {
+      return {
+        titre: "Créer ton entrée du jour",
+        description: "Commence par renseigner énergie, focus et humeur pour activer les recommandations.",
+        cta: "Faire mon check-in",
+        to: "journal",
       }
-      dateCourante.setDate(dateCourante.getDate() + 1)
     }
-    if (semaine.length > 0) semaines.push(semaine)
-
-    return semaines
-  }, [])
-
-  /**
-   * Renvoie la classe CSS de couleur pour une cellule de heatmap
-   * selon le nombre d'entrées ce jour-là
-   */
-  const couleurHeatmap = (dateStr) => {
-    const count = donneesHeatmap[dateStr] || 0
-    if (count === 0) return 'bg-navy-800'
-    if (count === 1) return 'bg-energy-high/30'
-    if (count === 2) return 'bg-energy-high/60'
-    return 'bg-energy-high'
-  }
-
-  /**
-   * MiniGraphe SVG — Graphe en courbes pour énergie/focus/humeur sur 30 jours
-   * Dessiné en SVG pur (pas de lib) : calcul des points → polyline
-   */
-  function MiniGraphe({ donnees, cle, couleur, label }) {
-    if (donnees.length < 2) {
-      return (
-        <div className="flex items-center justify-center h-16 text-xs text-muted">
-          Pas assez de données
-        </div>
-      )
+    if (latestLog.procrastinated) {
+      return {
+        titre: "Relancer l'élan maintenant",
+        description: "Fais une session de 15 minutes sur la tâche la plus importante, sans viser la perfection.",
+        cta: "Voir mes plans",
+        to: "/app/plans",
+      }
     }
+    if ((latestLog.focus || 0) <= 2) {
+      return {
+        titre: "Remonter ton focus",
+        description: "Bloque 25 minutes de concentration et coupe les distractions pendant ce bloc.",
+        cta: "Optimiser ma journée",
+        to: "/app/agenda",
+      }
+    }
+    return {
+      titre: "Capitaliser sur ta dynamique",
+      description: "Tu es dans un bon rythme : exécute une action de plan pour consolider ta progression.",
+      cta: "Voir mes plans",
+      to: "/app/plans",
+    }
+  }, [latestLog])
 
-    const largeur = 300
-    const hauteur = 60
-    const maxVal = 5 // Les scores sont sur 5
-
-    // Calcul des coordonnées pour chaque point de données
-    const points = donnees.map((d, i) => {
-      const x = (i / (donnees.length - 1)) * largeur
-      const valeur = d[cle] || 0
-      // SVG : y=0 est en haut, donc on inverse : valeur haute → y faible
-      const y = hauteur - (valeur / maxVal) * hauteur
-      return `${x},${y}`
-    })
-
-    const pointsStr = points.join(' ')
-
-    return (
-      <div>
-        <div className="flex items-center justify-between mb-1 text-xs">
-          <span className="text-muted">{label}</span>
-          <span className="font-mono" style={{ color: couleur }}>
-            {/* Valeur la plus récente */}
-            {donnees.length > 0 ? (donnees[donnees.length - 1][cle] || 0).toFixed(1) : '—'}/5
-          </span>
-        </div>
-        <svg
-          viewBox={`0 0 ${largeur} ${hauteur}`}
-          className="w-full"
-          style={{ height: '60px' }}
-          preserveAspectRatio="none"
-        >
-          {/* Zone remplie sous la courbe */}
-          <defs>
-            <linearGradient id={`grad-${cle}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={couleur} stopOpacity="0.3"/>
-              <stop offset="100%" stopColor={couleur} stopOpacity="0"/>
-            </linearGradient>
-          </defs>
-
-          {/* Ligne de grille horizontale à mi-hauteur */}
-          <line x1="0" y1={hauteur / 2} x2={largeur} y2={hauteur / 2}
-                stroke="#21262d" strokeWidth="1" strokeDasharray="4,4"/>
-
-          {/* Zone de remplissage (area chart) */}
-          <polygon
-            points={`0,${hauteur} ${pointsStr} ${largeur},${hauteur}`}
-            fill={`url(#grad-${cle})`}
-          />
-
-          {/* Ligne de la courbe */}
-          <polyline
-            points={pointsStr}
-            fill="none"
-            stroke={couleur}
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-
-          {/* Point final mis en valeur */}
-          {points.length > 0 && (() => {
-            const dernierPoint = points[points.length - 1].split(',')
-            return (
-              <circle
-                cx={dernierPoint[0]}
-                cy={dernierPoint[1]}
-                r="3"
-                fill={couleur}
-              />
-            )
-          })()}
-        </svg>
-      </div>
-    )
-  }
+  const risques = useMemo(() => {
+    const items = []
+    if (!latestLog) items.push("Aucune entrée du jour enregistrée.")
+    if ((stats?.completion_rate ?? 0) < 35) items.push("Taux de complétion faible cette semaine.")
+    if (logs.length < 3) items.push("Peu de données : ajoute des logs pour des recommandations plus précises.")
+    if ((latestLog?.energie ?? 3) <= 2) items.push("Énergie basse détectée aujourd'hui.")
+    return items.slice(0, 3)
+  }, [latestLog, logs.length, stats?.completion_rate])
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
@@ -241,8 +163,29 @@ export default function Dashboard() {
         </div>
       ) : (
         <>
-          {/* ── Métriques principales ────────────────────────────────── */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+          <div className="card mb-6 animate-fade-up border-accent/30 bg-accent/5">
+            <p className="text-[10px] uppercase tracking-wider text-accent mb-2">Prochaine action recommandée</p>
+            <h2 className="text-lg font-semibold text-slate-100 mb-1">{prochaineAction.titre}</h2>
+            <p className="text-sm text-muted mb-4">{prochaineAction.description}</p>
+            <div className="flex items-center gap-2">
+              {prochaineAction.to.startsWith('/') ? (
+                <Link to={prochaineAction.to} className="btn-primary text-xs">{prochaineAction.cta}</Link>
+              ) : prochaineAction.to === 'journal' ? (
+                <button
+                  type="button"
+                  onClick={() => document.getElementById('journal')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                  className="btn-primary text-xs"
+                >
+                  {prochaineAction.cta}
+                </button>
+              ) : (
+                <a href={prochaineAction.to} className="btn-primary text-xs">{prochaineAction.cta}</a>
+              )}
+              <Link to="/app/agenda" className="btn-ghost text-xs">Plan du jour</Link>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
             {/* Streak actuel */}
             <div className="card text-center animate-fade-up">
               <div className="font-mono text-3xl text-energy-medium mb-1">
@@ -255,7 +198,7 @@ export default function Dashboard() {
             {/* Meilleur streak */}
             <div className="card text-center animate-fade-up" style={{ animationDelay: '0.05s' }}>
               <div className="font-mono text-3xl text-accent mb-1">
-                {stats?.best_streak ?? 0}
+                {bestStreakFromLogs || stats?.best_streak || 0}
               </div>
               <p className="text-xs text-muted">Meilleur streak</p>
               <p className="text-[10px] text-muted mt-0.5">🏆 Record</p>
@@ -271,90 +214,49 @@ export default function Dashboard() {
               <p className="text-xs text-muted">Taux de complétion</p>
               <p className="text-[10px] text-muted mt-0.5">✓ Blocs faits</p>
             </div>
+          </div>
 
-            {/* Total des logs */}
-            <div className="card text-center animate-fade-up" style={{ animationDelay: '0.15s' }}>
-              <div className="font-mono text-3xl text-slate-300 mb-1">
-                {logs.length}
+          <div className="card mb-6 animate-fade-up">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <h2 className="text-sm font-medium text-slate-200 mb-1">Insight du jour</h2>
+                <p className="text-sm text-muted">{insightDuJour}</p>
               </div>
-              <p className="text-xs text-muted">Entrées de journal</p>
-              <p className="text-[10px] text-muted mt-0.5">📔 Total</p>
+              <div className="flex items-center gap-2">
+                <Link to="/app/plans" className="btn-ghost text-xs">Voir mes plans</Link>
+                <Link to="/app/agenda" className="btn-primary text-xs">Optimiser ma journée</Link>
+              </div>
             </div>
           </div>
 
-          {/* ── Graphes des scores sur 30 jours ─────────────────────── */}
-          <div className="card mb-6 animate-fade-up">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-medium text-slate-200">
-                Évolution sur 30 jours
-              </h2>
-              <span className="text-xs text-muted font-mono">
-                {donneesGraphe.length} entrée(s)
-              </span>
-            </div>
-
-            <div className="space-y-5">
-              <MiniGraphe
-                donnees={donneesGraphe}
-                cle="energie"
-                couleur="#10b981"
-                label="⚡ Énergie"
-              />
-              <MiniGraphe
-                donnees={donneesGraphe}
-                cle="focus"
-                couleur="#818cf8"
-                label="🎯 Focus"
-              />
-              <MiniGraphe
-                donnees={donneesGraphe}
-                cle="humeur"
-                couleur="#f59e0b"
-                label="😊 Humeur"
-              />
-            </div>
-          </div>
-
-          {/* ── Heatmap annuelle ─────────────────────────────────────── */}
-          <div className="card mb-6 animate-fade-up">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-medium text-slate-200">
-                Activité {new Date().getFullYear()}
-              </h2>
-              {/* Légende de la heatmap */}
-              <div className="flex items-center gap-1.5 text-[10px] text-muted">
-                <span>Moins</span>
-                {['bg-navy-800', 'bg-energy-high/30', 'bg-energy-high/60', 'bg-energy-high'].map((c, i) => (
-                  <div key={i} className={`w-2.5 h-2.5 rounded-sm ${c}`} />
-                ))}
-                <span>Plus</span>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+            <div className="card animate-fade-up">
+              <h2 className="text-sm font-medium text-slate-200 mb-3">Progression du jour</h2>
+              <div className="w-full h-2 rounded-full bg-navy-700 overflow-hidden mb-2">
+                <div
+                  className="h-full bg-accent transition-all duration-500"
+                  style={{ width: `${progressionJour}%` }}
+                />
               </div>
+              <p className="text-xs text-muted">{progressionJour}% de readiness (énergie + focus du dernier log)</p>
             </div>
 
-            {/* Grille de la heatmap : semaines en colonnes, jours en lignes */}
-            <div className="overflow-x-auto">
-              <div className="flex gap-0.5 min-w-max">
-                {semainesAnnee.map((semaine, si) => (
-                  <div key={si} className="flex flex-col gap-0.5">
-                    {semaine.map((jour, ji) => {
-                      const dateStr = jour.toISOString().split('T')[0]
-                      const count = donneesHeatmap[dateStr] || 0
-                      return (
-                        <div
-                          key={ji}
-                          title={`${dateStr} — ${count} entrée(s)`}
-                          className={`w-2.5 h-2.5 rounded-sm ${couleurHeatmap(dateStr)} cursor-default`}
-                        />
-                      )
-                    })}
-                  </div>
-                ))}
-              </div>
+            <div className="card animate-fade-up">
+              <h2 className="text-sm font-medium text-slate-200 mb-3">Points d'attention</h2>
+              {risques.length === 0 ? (
+                <p className="text-xs text-energy-high">Aucun signal de risque majeur pour le moment.</p>
+              ) : (
+                <ul className="space-y-2 text-xs text-muted">
+                  {risques.map((item) => (
+                    <li key={item}>• {item}</li>
+                  ))}
+                </ul>
+              )}
             </div>
           </div>
 
           {/* ── Formulaire d'entrée de journal rapide ──────────────── */}
-          <div className="card animate-fade-up">
+          <div id="journal" className="card animate-fade-up">
             <h2 className="text-sm font-medium text-slate-200 mb-4">
               Entrée du jour — Comment vous sentez-vous ?
             </h2>
