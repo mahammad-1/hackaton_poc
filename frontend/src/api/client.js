@@ -152,6 +152,10 @@ export const createUser = (data) =>
 export const getUser = (userId) =>
   apiRequest(`/users/${userId}`)
 
+/** Liste les utilisateurs (utilisé pour la connexion front) */
+export const listUsers = () =>
+  apiRequest('/users/')
+
 // ─────────────────────────────────────────────
 // API Diagnostic — Habitudes
 // ─────────────────────────────────────────────

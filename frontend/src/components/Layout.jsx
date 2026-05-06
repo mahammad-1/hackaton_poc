@@ -9,7 +9,7 @@ import useAppStore from '../store/useAppStore.js'
 // Chaque item a : un chemin, un label et une icône SVG inline
 const NAV_ITEMS = [
   {
-    path: '/dashboard',
+    path: '/app/dashboard',
     label: 'Dashboard',
     icon: (
       <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -19,7 +19,7 @@ const NAV_ITEMS = [
     ),
   },
   {
-    path: '/diagnostic',
+    path: '/app/diagnostic',
     label: 'Diagnostic',
     icon: (
       <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -28,7 +28,7 @@ const NAV_ITEMS = [
     ),
   },
   {
-    path: '/plans',
+    path: '/app/plans',
     label: 'Plans',
     icon: (
       <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -39,7 +39,7 @@ const NAV_ITEMS = [
     ),
   },
   {
-    path: '/agenda',
+    path: '/app/agenda',
     label: 'Agenda',
     icon: (
       <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">

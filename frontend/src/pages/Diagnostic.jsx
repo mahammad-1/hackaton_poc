@@ -363,7 +363,7 @@ export default function Diagnostic() {
                 <p className="text-slate-300 text-sm mb-3">
                   Prêt à agir ? Générez votre plan d'action personnalisé.
                 </p>
-                <a href="/plans" className="btn-primary inline-block">
+                <a href="/app/plans" className="btn-primary inline-block">
                   Voir mes plans d'action →
                 </a>
               </div>

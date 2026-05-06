@@ -3,7 +3,7 @@
 // Redirige vers /dashboard après création réussie
 
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useUser } from '../hooks/useUser.js'
 
 
@@ -39,6 +39,7 @@ export default function Onboarding() {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
+    password: '',
     age: '',
     chronotype: '',
     job: '',
@@ -69,12 +70,13 @@ export default function Onboarding() {
     })
     if (profil) {
       // Redirection vers le dashboard après création réussie
-      navigate('/dashboard', { replace: true })
+      navigate('/app/dashboard', { replace: true })
     }
   }
 
   // Validation de l'étape 1 avant de passer à l'étape 2
-  const etape1Valide = formData.name && formData.email && formData.chronotype
+  const etape1Valide =
+    formData.name && formData.email && formData.password && formData.password.length >= 6 && formData.chronotype
 
   return (
     <div className="min-h-screen bg-navy-950 flex items-center justify-center p-6">
@@ -87,6 +89,12 @@ export default function Onboarding() {
       />
 
       <div className="relative w-full max-w-md">
+        <div className="mb-4">
+          <Link to="/" className="btn-ghost inline-flex items-center gap-2">
+            ← Retour à l'accueil
+          </Link>
+        </div>
+
         {/* En-tête */}
         <div className="text-center mb-8 animate-fade-up">
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl
@@ -163,6 +171,21 @@ export default function Onboarding() {
                     min="10"
                     max="99"
                     className="input"
+                  />
+                </div>
+
+                {/* Mot de passe */}
+                <div>
+                  <label className="block text-xs text-muted mb-1.5">Mot de passe *</label>
+                  <input
+                    type="password"
+                    name="password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    placeholder="Minimum 6 caractères"
+                    minLength={6}
+                    className="input"
+                    required
                   />
                 </div>
 
