@@ -128,9 +128,8 @@ export default function Onboarding() {
 
         {/* En-tête */}
         <div className="text-center mb-8 animate-fade-up">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl
-                          bg-accent/15 border border-accent/25 mb-4">
-            <span className="text-accent text-2xl">⟁</span>
+          <div className="inline-flex items-center justify-center mb-4">
+            <img src="/logo_hackaton.png" alt="NeuroFlow" className="h-28 w-28 object-contain" />
           </div>
           <h1 className="text-2xl font-semibold text-slate-100 mb-1">NeuroFlow</h1>
           <p className="text-muted text-sm">

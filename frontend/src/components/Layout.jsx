@@ -103,9 +103,7 @@ export default function Layout() {
         <div className="px-6 py-5 border-b border-navy-700">
           <div className="flex items-center gap-2.5">
             {/* Icône cerveau symbolique */}
-            <div className="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center">
-              <span className="text-accent text-sm">⟁</span>
-            </div>
+            <img src="/logo_hackaton.png" alt="NeuroFlow" className="h-12 w-12 object-contain" />
             <div>
               <h1 className="text-slate-200 font-semibold text-sm leading-tight">NeuroFlow</h1>
               <p className="text-muted text-[10px] leading-tight">Anti-procrastination</p>
