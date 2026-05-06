@@ -5,8 +5,8 @@ from datetime import date, time
 # ─── USERS ────────────────────────────────────────────────
 class UserCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
-    email: EmailStr
-    chronotype: Literal["morning", "evening", "intermediate"] = "intermediate"
+    email: Optional[EmailStr] = None
+    chronotype: Literal["lion", "bear", "wolf", "dolphin"] = "bear"
 
 class UserOut(BaseModel):
     id: int
