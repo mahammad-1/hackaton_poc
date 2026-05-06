@@ -33,13 +33,14 @@ const CHRONOTYPES = [
 
 export default function Onboarding() {
   const navigate = useNavigate()
-  const { loading, error, register } = useUser()
+  const { loading, error, register, checkEmailAvailability } = useUser()
 
   // État du formulaire multi-champs
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     password: '',
+    robotVerified: false,
     age: '',
     chronotype: '',
     job: '',
@@ -48,11 +49,35 @@ export default function Onboarding() {
 
   // Étape actuelle du formulaire (on le découpe en 2 étapes pour ne pas surcharger)
   const [etape, setEtape] = useState(1)
+  const [showPassword, setShowPassword] = useState(false)
+  const [emailStatus, setEmailStatus] = useState({
+    checking: false,
+    available: null,
+    message: '',
+  })
 
   /** Handler générique : met à jour le champ correspondant par son `name` */
   const handleChange = (e) => {
-    const { name, value } = e.target
-    setFormData((prev) => ({ ...prev, [name]: value }))
+    const { name, value, type, checked } = e.target
+    setFormData((prev) => ({ ...prev, [name]: type === 'checkbox' ? checked : value }))
+    if (name === 'email') {
+      setEmailStatus({ checking: false, available: null, message: '' })
+    }
+  }
+
+  const handleEmailBlur = async () => {
+    if (!formData.email) return
+    setEmailStatus({ checking: true, available: null, message: 'Vérification de l’email...' })
+    const result = await checkEmailAvailability(formData.email)
+    if (result.reason === 'ok') {
+      setEmailStatus({ checking: false, available: true, message: 'Email disponible.' })
+      return
+    }
+    if (result.reason === 'taken') {
+      setEmailStatus({ checking: false, available: false, message: 'Cet email est déjà utilisé.' })
+      return
+    }
+    setEmailStatus({ checking: false, available: false, message: 'Impossible de vérifier pour le moment.' })
   }
 
   /** Sélection du chronotype (boutons cliquables) */
@@ -76,7 +101,13 @@ export default function Onboarding() {
 
   // Validation de l'étape 1 avant de passer à l'étape 2
   const etape1Valide =
-    formData.name && formData.email && formData.password && formData.password.length >= 6 && formData.chronotype
+    formData.name &&
+    formData.email &&
+    formData.password &&
+    formData.password.length >= 6 &&
+    formData.chronotype &&
+    formData.robotVerified &&
+    emailStatus.available === true
 
   return (
     <div className="min-h-screen bg-navy-950 flex items-center justify-center p-6">
@@ -153,10 +184,20 @@ export default function Onboarding() {
                     name="email"
                     value={formData.email}
                     onChange={handleChange}
+                    onBlur={handleEmailBlur}
                     placeholder="votre@email.com"
                     className="input"
                     required
                   />
+                  {emailStatus.message && (
+                    <p
+                      className={`mt-1 text-xs ${
+                        emailStatus.available ? 'text-energy-high' : 'text-energy-low'
+                      }`}
+                    >
+                      {emailStatus.message}
+                    </p>
+                  )}
                 </div>
 
                 {/* Âge */}
@@ -177,16 +218,25 @@ export default function Onboarding() {
                 {/* Mot de passe */}
                 <div>
                   <label className="block text-xs text-muted mb-1.5">Mot de passe *</label>
-                  <input
-                    type="password"
-                    name="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    placeholder="Minimum 6 caractères"
-                    minLength={6}
-                    className="input"
-                    required
-                  />
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      name="password"
+                      value={formData.password}
+                      onChange={handleChange}
+                      placeholder="Minimum 6 caractères"
+                      minLength={6}
+                      className="input pr-11"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((prev) => !prev)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted hover:text-slate-300"
+                    >
+                      {showPassword ? 'Cacher' : 'Afficher'}
+                    </button>
+                  </div>
                 </div>
 
                 {/* Chronotype */}
@@ -216,6 +266,18 @@ export default function Onboarding() {
                     ))}
                   </div>
                 </div>
+
+                <label className="flex items-center gap-2 text-xs text-slate-300">
+                  <input
+                    type="checkbox"
+                    name="robotVerified"
+                    checked={formData.robotVerified}
+                    onChange={handleChange}
+                    className="accent-accent"
+                    required
+                  />
+                  Je ne suis pas un robot
+                </label>
 
                 <button
                   type="button"

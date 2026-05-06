@@ -5,6 +5,7 @@ import { useUser } from '../hooks/useUser.js'
 export default function Auth() {
   const navigate = useNavigate()
   const { login, loading, error } = useUser()
+  const [showPassword, setShowPassword] = useState(false)
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -21,7 +22,6 @@ export default function Auth() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!formData.robotVerified) return
     const profile = await login({
       email: formData.email,
       password: formData.password,
@@ -66,15 +66,24 @@ export default function Auth() {
 
             <div>
               <label className="block text-xs text-muted mb-1.5">Mot de passe</label>
-              <input
-                type="password"
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                className="input"
-                placeholder="Votre mot de passe"
-                required
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  className="input pr-11"
+                  placeholder="Votre mot de passe"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted hover:text-slate-300"
+                >
+                  {showPassword ? 'Cacher' : 'Afficher'}
+                </button>
+              </div>
             </div>
 
             <label className="flex items-center gap-2 text-xs text-slate-300">

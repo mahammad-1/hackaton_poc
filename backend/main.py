@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from models.database import init_db
-from routers import users, diagnostic, plans, agenda, auth
+from routers import users, diagnostic, plans, agenda, auth, security
  
 app = FastAPI(
     title="Anti-Procrastination API",
@@ -30,6 +30,7 @@ def on_startup():
  
 # Inclure tous les routers
 app.include_router(auth.router)
+app.include_router(security.router)
 app.include_router(users.router)
 app.include_router(diagnostic.router)
 app.include_router(plans.router)
