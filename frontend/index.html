@@ -4,9 +4,8 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>NeuroFlow — Anti-procrastination</title>
+    <title>NeuroFlow</title>
 
-    <!-- Google Fonts : Sora (UI) + DM Mono (données chiffrées) -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -15,14 +14,12 @@
     />
 
     <style>
-      /* Style de base global : fond sombre, pas de scroll-x parasite */
       * { box-sizing: border-box; }
       html, body, #root {
         height: 100%;
         background-color: #060a14;
         color: #e2e8f0;
       }
-      /* Scrollbar personnalisée pour un look cohérent */
       ::-webkit-scrollbar { width: 6px; }
       ::-webkit-scrollbar-track { background: #0d1117; }
       ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
@@ -31,7 +28,6 @@
   </head>
   <body>
     <div id="root"></div>
-    <!-- Point d'entrée React : Vite injecte le bundle ici -->
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
