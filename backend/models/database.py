@@ -1,15 +1,16 @@
+
 import sqlite3
 import os
 from contextlib import contextmanager
-
+ 
 DB_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "app.db")
-
+ 
 def get_connection():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     return conn
-
+ 
 @contextmanager
 def get_db():
     conn = get_connection()
@@ -21,19 +22,20 @@ def get_db():
         raise
     finally:
         conn.close()
-
+ 
 def init_db():
     with get_db() as conn:
         conn.executescript("""
         -- Utilisateurs
         CREATE TABLE IF NOT EXISTS users (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            name        TEXT NOT NULL,
-            email       TEXT UNIQUE NOT NULL,
-            chronotype  TEXT DEFAULT 'intermediate', -- morning / evening / intermediate
-            created_at  TEXT DEFAULT (datetime('now'))
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            name            TEXT NOT NULL,
+            email           TEXT UNIQUE NOT NULL,
+            password_hash   TEXT,
+            chronotype      TEXT DEFAULT 'intermediate', -- morning / evening / intermediate
+            created_at      TEXT DEFAULT (datetime('now'))
         );
-
+ 
         -- Mauvaises habitudes déclarées
         CREATE TABLE IF NOT EXISTS bad_habits (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -43,7 +45,7 @@ def init_db():
             severity    INTEGER DEFAULT 3, -- 1 (faible) à 5 (sévère)
             created_at  TEXT DEFAULT (datetime('now'))
         );
-
+ 
         -- Causes de procrastination
         CREATE TABLE IF NOT EXISTS procrastination_causes (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -55,7 +57,7 @@ def init_db():
             frequency   INTEGER DEFAULT 3, -- 1 (rare) à 5 (quotidien)
             created_at  TEXT DEFAULT (datetime('now'))
         );
-
+ 
         -- Plan d'actions générées
         CREATE TABLE IF NOT EXISTS action_plans (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -71,7 +73,7 @@ def init_db():
             completed_at TEXT,
             created_at  TEXT DEFAULT (datetime('now'))
         );
-
+ 
         -- Agenda / blocs de temps
         CREATE TABLE IF NOT EXISTS agenda_blocks (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -87,7 +89,7 @@ def init_db():
             done        INTEGER DEFAULT 0, -- 0 / 1
             created_at  TEXT DEFAULT (datetime('now'))
         );
-
+ 
         -- Suivi quotidien / journal
         CREATE TABLE IF NOT EXISTS daily_logs (
             id            INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -101,7 +103,7 @@ def init_db():
             created_at    TEXT DEFAULT (datetime('now')),
             UNIQUE(user_id, date)
         );
-
+ 
         -- Habitudes en cours de correction (streaks)
         CREATE TABLE IF NOT EXISTS habit_streaks (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -113,4 +115,12 @@ def init_db():
             UNIQUE(user_id, habit_id)
         );
         """)
+ 
+        # Migration : ajouter password_hash si la colonne n'existe pas encore
+        cols = [r[1] for r in conn.execute("PRAGMA table_info(users)").fetchall()]
+        if "password_hash" not in cols:
+            conn.execute("ALTER TABLE users ADD COLUMN password_hash TEXT")
+            print("🔄 Migration : colonne password_hash ajoutée.")
+ 
     print(f"✅ Base de données initialisée : {DB_PATH}")
+ 
