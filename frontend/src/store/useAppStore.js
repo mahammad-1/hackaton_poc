@@ -11,6 +11,8 @@ const useAppStore = create(
   // certaines clés dans localStorage, ici uniquement `userId`.
   persist(
     (set) => ({
+      hasHydrated: false,
+
       // ── État utilisateur ──────────────────────────────────────────────
       userId: null,          // ID de l'utilisateur connecté (persisté en localStorage)
       userProfile: null,     // Données complètes du profil (nom, chronotype, etc.)
@@ -91,6 +93,9 @@ const useAppStore = create(
 
       /** Stocke les statistiques agrégées */
       setStats: (stats) => set({ stats }),
+
+      /** Indique que la restauration depuis localStorage est terminée */
+      setHasHydrated: (value) => set({ hasHydrated: value }),
     }),
     {
       name: 'neuroflow-storage', // Clé dans localStorage
@@ -99,6 +104,9 @@ const useAppStore = create(
         userId: state.userId,
         userProfile: state.userProfile,
       }),
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true)
+      },
     }
   )
 )

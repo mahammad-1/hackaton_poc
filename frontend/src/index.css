@@ -24,6 +24,21 @@
   }
 }
 
+@keyframes dia-reveal {
+  0% {
+    background-position: 0% 50%;
+    filter: brightness(0.95);
+  }
+  50% {
+    background-position: 100% 50%;
+    filter: brightness(1.15);
+  }
+  100% {
+    background-position: 0% 50%;
+    filter: brightness(0.95);
+  }
+}
+
 /* Classes utilitaires custom réutilisables dans les composants */
 @layer components {
   /* Carte de base : fond sombre, bordure subtile, coins arrondis */
