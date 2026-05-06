@@ -3,12 +3,26 @@
 // et la rendent réutilisable dans n'importe quel composant.
 
 import { useState } from 'react'
-import { createUser, getUser } from '../api/client.js'
+import { createUser, getUser, listUsers } from '../api/client.js'
 import useAppStore from '../store/useAppStore.js'
+
+const AUTH_STORAGE_KEY = 'neuroflow-auth'
+
+function readAuthStore() {
+  try {
+    return JSON.parse(localStorage.getItem(AUTH_STORAGE_KEY) || '{}')
+  } catch {
+    return {}
+  }
+}
+
+function writeAuthStore(data) {
+  localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(data))
+}
 
 /**
  * useUser — fournit les fonctions et états liés à l'utilisateur.
- * Retourne : { loading, error, register, loadUser }
+ * Retourne : { loading, error, register, login, loadUser }
  */
 export function useUser() {
   // État local pour le chargement et les erreurs (pas besoin de les globaliser)
@@ -27,16 +41,58 @@ export function useUser() {
     setLoading(true)
     setError(null)
     try {
+      const { password, ...profileData } = formData
       // Appel POST /users → le backend retourne le profil complet avec l'ID
-      const profil = await createUser(formData)
+      const profil = await createUser(profileData)
       // On stocke l'ID et le profil dans le store global (+ localStorage via persist)
       setUser(profil.id, profil)
+      if (password && profil.email) {
+        const authStore = readAuthStore()
+        authStore[profil.email.toLowerCase()] = {
+          userId: profil.id,
+          password,
+        }
+        writeAuthStore(authStore)
+      }
       return profil
     } catch (err) {
       setError(err.message)
       return null
     } finally {
       // finally garantit que loading=false même si une erreur est levée
+      setLoading(false)
+    }
+  }
+
+  /**
+   * login — Connexion locale email+mot de passe
+   * Le mot de passe est compare avec les infos enregistrees lors de l'inscription.
+   */
+  const login = async ({ email, password }) => {
+    setLoading(true)
+    setError(null)
+    try {
+      const normalizedEmail = (email || '').trim().toLowerCase()
+      const authStore = readAuthStore()
+      const authEntry = authStore[normalizedEmail]
+      if (!authEntry) {
+        throw new Error('Compte introuvable. Inscrivez-vous d abord.')
+      }
+      if (authEntry.password !== password) {
+        throw new Error('Mot de passe incorrect.')
+      }
+
+      const users = await listUsers()
+      const profile = users.find((u) => (u.email || '').toLowerCase() === normalizedEmail)
+      if (!profile) {
+        throw new Error('Profil utilisateur introuvable sur le serveur.')
+      }
+      setUser(profile.id, profile)
+      return profile
+    } catch (err) {
+      setError(err.message)
+      return null
+    } finally {
       setLoading(false)
     }
   }
@@ -61,5 +117,5 @@ export function useUser() {
     }
   }
 
-  return { loading, error, register, loadUser }
+  return { loading, error, register, login, loadUser }
 }

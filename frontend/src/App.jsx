@@ -3,6 +3,8 @@
 
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Layout from './components/Layout.jsx'
+import Home from './pages/Home.jsx'
+import Auth from './pages/Auth.jsx'
 import Onboarding from './pages/Onboarding.jsx'
 import Diagnostic from './pages/Diagnostic.jsx'
 import Plans from './pages/Plans.jsx'
@@ -18,17 +20,21 @@ export default function App() {
   return (
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <Routes>
+        {/* Accueil public */}
+        <Route path="/" element={<Home />} />
+        <Route path="/auth" element={<Auth />} />
+
         {/* Route publique : création de compte */}
         <Route path="/onboarding" element={<Onboarding />} />
 
         {/* Routes protégées : wrappées dans Layout (nav + sidebar) */}
         {/* Si pas de userId → redirige vers onboarding */}
         <Route
-          path="/"
-          element={userId ? <Layout /> : <Navigate to="/onboarding" replace />}
+          path="/app"
+          element={userId ? <Layout /> : <Navigate to="/auth" replace />}
         >
-          {/* Route index = page par défaut quand on arrive sur "/" */}
-          <Route index element={<Navigate to="/dashboard" replace />} />
+          {/* Route index = page par défaut quand on arrive sur "/app" */}
+          <Route index element={<Navigate to="/app/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="diagnostic" element={<Diagnostic />} />
           <Route path="plans" element={<Plans />} />
