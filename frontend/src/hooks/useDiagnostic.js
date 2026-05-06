@@ -5,7 +5,7 @@ import { useState } from 'react'
 import {
   createHabits, getHabits,
   createCauses, getCauses,
-  getDiagnostic,
+  getDiagnostic, getDiagnosticReports,
 } from '../api/client.js'
 import useAppStore from '../store/useAppStore.js'
 
@@ -86,5 +86,17 @@ export function useDiagnostic() {
       return rapport
     })
 
-  return { loading, error, saveHabits, loadHabits, saveCauses, loadCauses, loadDiagnostic }
+  const loadDiagnosticReports = () =>
+    withLoading(async () => getDiagnosticReports(userId))
+
+  return {
+    loading,
+    error,
+    saveHabits,
+    loadHabits,
+    saveCauses,
+    loadCauses,
+    loadDiagnostic,
+    loadDiagnosticReports,
+  }
 }

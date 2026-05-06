@@ -12,10 +12,23 @@ def _check_user(conn, user_id: int):
 
 
 @router.post("/generate", response_model=list[ActionPlanOut], status_code=201)
-def auto_generate_plans(user_id: int):
+def auto_generate_plans(user_id: int, report_id: int | None = None):
     """Génère automatiquement les plans d'action à partir des causes enregistrées."""
     with get_db() as conn:
         _check_user(conn, user_id)
+        if report_id is None:
+            latest_report = conn.execute(
+                "SELECT id FROM diagnostic_reports WHERE user_id = ? ORDER BY id DESC LIMIT 1",
+                (user_id,),
+            ).fetchone()
+            if latest_report:
+                report_id = latest_report["id"]
+        elif not conn.execute(
+            "SELECT id FROM diagnostic_reports WHERE id = ? AND user_id = ?",
+            (report_id, user_id),
+        ).fetchone():
+            raise HTTPException(status_code=404, detail="Rapport introuvable pour cet utilisateur.")
+
         causes = [
             dict(r)
             for r in conn.execute(
@@ -34,10 +47,10 @@ def auto_generate_plans(user_id: int):
             safe_duration = max(1, int(p["duration_min"]))
             cur = conn.execute(
                 """INSERT INTO action_plans
-                   (user_id, cause_id, title, protocol, description, duration_min, difficulty, status)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                   (user_id, report_id, cause_id, title, protocol, description, duration_min, difficulty, status)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
-                    p["user_id"], p["cause_id"], p["title"], p["protocol"],
+                    p["user_id"], report_id, p["cause_id"], p["title"], p["protocol"],
                     p["description"], safe_duration, p["difficulty"], p["status"],
                 ),
             )
@@ -59,10 +72,10 @@ def create_plan(user_id: int, payload: ActionPlanCreate):
         _check_user(conn, user_id)
         cur = conn.execute(
             """INSERT INTO action_plans
-               (user_id, cause_id, title, protocol, description, duration_min, difficulty, scheduled_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+               (user_id, report_id, cause_id, title, protocol, description, duration_min, difficulty, scheduled_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
-                user_id, payload.cause_id, payload.title, payload.protocol,
+                user_id, payload.report_id, payload.cause_id, payload.title, payload.protocol,
                 payload.description, payload.duration_min, payload.difficulty,
                 payload.scheduled_at,
             ),
@@ -74,13 +87,23 @@ def create_plan(user_id: int, payload: ActionPlanCreate):
 
 
 @router.get("/", response_model=list[ActionPlanOut])
-def list_plans(user_id: int, status: str | None = None):
+def list_plans(user_id: int, status: str | None = None, report_id: int | None = None):
     with get_db() as conn:
         _check_user(conn, user_id)
-        if status:
+        if status and report_id is not None:
+            rows = conn.execute(
+                "SELECT * FROM action_plans WHERE user_id = ? AND status = ? AND report_id = ? ORDER BY difficulty",
+                (user_id, status, report_id),
+            ).fetchall()
+        elif status:
             rows = conn.execute(
                 "SELECT * FROM action_plans WHERE user_id = ? AND status = ? ORDER BY difficulty",
                 (user_id, status),
+            ).fetchall()
+        elif report_id is not None:
+            rows = conn.execute(
+                "SELECT * FROM action_plans WHERE user_id = ? AND report_id = ? ORDER BY difficulty",
+                (user_id, report_id),
             ).fetchall()
         else:
             rows = conn.execute(
@@ -129,4 +152,14 @@ def delete_plan(user_id: int, plan_id: int):
         _check_user(conn, user_id)
         conn.execute(
             "DELETE FROM action_plans WHERE id = ? AND user_id = ?", (plan_id, user_id)
+        )
+
+
+@router.delete("/report/{report_id}", status_code=204)
+def delete_report_plans(user_id: int, report_id: int):
+    with get_db() as conn:
+        _check_user(conn, user_id)
+        conn.execute(
+            "DELETE FROM action_plans WHERE user_id = ? AND report_id = ?",
+            (user_id, report_id),
         )

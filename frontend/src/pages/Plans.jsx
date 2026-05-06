@@ -1,18 +1,21 @@
 // pages/Plans.jsx — Liste des plans d'action + génération + changement de statut
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import useAppStore from '../store/useAppStore.js'
-import { generatePlan, getPlans, updatePlan } from '../api/client.js'
+import { deleteReportPlans, generatePlan, getDiagnosticReports, getPlans, updatePlan } from '../api/client.js'
 import PlanCard from '../components/PlanCard.jsx'
 
 export default function Plans() {
   const [loading, setLoading] = useState(false)
   const [generating, setGenerating] = useState(false)
   const [error, setError] = useState(null)
+  const [reports, setReports] = useState([])
+  const [collapsedReports, setCollapsedReports] = useState({})
 
-  const { userId, plans, setPlans, updatePlan: updatePlanInStore } = useAppStore((state) => ({
+  const { userId, plans, diagnostic, setPlans, updatePlan: updatePlanInStore } = useAppStore((state) => ({
     userId: state.userId,
     plans: state.plans,
+    diagnostic: state.diagnostic,
     setPlans: state.setPlans,
     updatePlan: state.updatePlan,
   }))
@@ -23,14 +26,18 @@ export default function Plans() {
   // Chargement initial des plans au montage du composant
   useEffect(() => {
     chargerPlans()
-  }, [])
+  }, [userId])
 
   const chargerPlans = async () => {
     setLoading(true)
     setError(null)
     try {
-      const data = await getPlans(userId)
-      setPlans(data)
+      const [plansData, reportsData] = await Promise.all([
+        getPlans(userId),
+        getDiagnosticReports(userId),
+      ])
+      setPlans(plansData)
+      setReports(reportsData)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -39,12 +46,17 @@ export default function Plans() {
   }
 
   /** Génère un nouveau plan d'action personnalisé via le backend */
-  const genererPlan = async () => {
+  const genererPlan = async (reportId = null) => {
     setGenerating(true)
     setError(null)
     try {
+      const cibleReportId = reportId ?? diagnostic?.report_id ?? reports[0]?.report_id
+      if (!cibleReportId) {
+        setError("Aucun rapport actif. Ouvre l'onglet Diagnostic puis affiche le rapport avant de générer les plans.")
+        return
+      }
       // POST /users/{id}/plans/generate — le backend analyse le diagnostic
-      const nouveauxPlans = await generatePlan(userId)
+      const nouveauxPlans = await generatePlan(userId, cibleReportId)
       if (!Array.isArray(nouveauxPlans) || nouveauxPlans.length === 0) {
         setError("Aucun plan n'a été généré. Vérifiez vos causes dans le diagnostic.")
         return
@@ -75,10 +87,49 @@ export default function Plans() {
     }
   }
 
+  const supprimerBlocRapport = async (reportId) => {
+    if (reportId === 'sans_rapport') return
+    const confirmed = window.confirm('Supprimer tout ce bloc de plans ? Cette action est irreversible.')
+    if (!confirmed) return
+    setError(null)
+    try {
+      await deleteReportPlans(userId, reportId)
+      await chargerPlans()
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
+  const toggleReportCollapse = (reportId) => {
+    setCollapsedReports((prev) => ({
+      ...prev,
+      [reportId]: !prev[reportId],
+    }))
+  }
+
   // Filtrage des plans selon l'onglet sélectionné
   const plansFiltres = filtre === 'all'
     ? plans
     : plans.filter((p) => p.status === filtre)
+
+  const plansParRapport = useMemo(() => {
+    const groupes = new Map()
+
+    reports.forEach((report) => {
+      groupes.set(report.report_id, [])
+    })
+
+    plansFiltres.forEach((plan) => {
+      const cle = plan.report_id ?? 'sans_rapport'
+      if (!groupes.has(cle)) groupes.set(cle, [])
+      groupes.get(cle).push(plan)
+    })
+    return Array.from(groupes.entries()).sort((a, b) => {
+      if (a[0] === 'sans_rapport') return 1
+      if (b[0] === 'sans_rapport') return -1
+      return Number(b[0]) - Number(a[0])
+    })
+  }, [plansFiltres, reports])
 
   // Compteurs par statut pour les badges des filtres
   const compteurs = {
@@ -166,7 +217,7 @@ export default function Plans() {
             <div key={i} className="card animate-pulse-soft h-32" />
           ))}
         </div>
-      ) : plansFiltres.length === 0 ? (
+      ) : plansParRapport.length === 0 ? (
         /* État vide */
         <div className="text-center py-16 card">
           <div className="text-4xl mb-3">📋</div>
@@ -186,10 +237,67 @@ export default function Plans() {
         </div>
       ) : (
         /* Liste des plans */
-        <div className="space-y-4">
-          {plansFiltres.map((plan) => (
-            <div key={plan.id} className="animate-fade-up">
-              <PlanCard plan={plan} onStatusChange={changerStatut} />
+        <div className="space-y-5">
+          {plansParRapport.map(([reportId, plansDuRapport], rapportIndex) => (
+            <div key={reportId} className="card border border-navy-600/80">
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-sm font-semibold text-slate-100">
+                  {reportId === 'sans_rapport'
+                    ? 'Plans sans rapport'
+                    : `Rapport ${rapportIndex + 1} · Diagnostic #${reportId}`}
+                </h2>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => toggleReportCollapse(reportId)}
+                    className="btn-ghost text-sm px-2.5 py-1.5 font-mono"
+                    aria-label={collapsedReports[reportId] ? 'Deplier le rapport' : 'Plier le rapport'}
+                    title={collapsedReports[reportId] ? 'Deplier' : 'Plier'}
+                  >
+                    {collapsedReports[reportId] ? '▸' : '▾'}
+                  </button>
+                  <span className="badge">{plansDuRapport.length} plan(s)</span>
+                  {reportId !== 'sans_rapport' && (
+                    <button
+                      type="button"
+                      onClick={() => genererPlan(reportId)}
+                      disabled={generating}
+                      className="btn-primary text-xs px-2.5 py-1.5"
+                    >
+                      + Générer pour ce rapport
+                    </button>
+                  )}
+                  {reportId !== 'sans_rapport' && (
+                    <button
+                      type="button"
+                      onClick={() => supprimerBlocRapport(reportId)}
+                      className="btn-ghost text-xs border-red-400/40 text-red-300 hover:bg-red-500/10"
+                    >
+                      Supprimer ce rapport
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {!collapsedReports[reportId] && (
+                <div className="space-y-3">
+                  {plansDuRapport.length === 0 ? (
+                    <p className="text-xs text-muted">
+                      Aucun plan dans ce rapport pour l'instant.
+                    </p>
+                  ) : (
+                    plansDuRapport.map((plan, index) => (
+                      <div key={plan.id} className="rounded-xl border border-navy-700 bg-navy-900/50 p-3">
+                        <div className="mb-2 flex items-center justify-between">
+                          <span className="badge">Plan {index + 1}</span>
+                          <span className="text-[11px] text-muted">ID #{plan.id}</span>
+                        </div>
+                        <PlanCard plan={plan} onStatusChange={changerStatut} />
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
           ))}
         </div>

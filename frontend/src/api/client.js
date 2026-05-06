@@ -202,21 +202,40 @@ export const getDiagnostic = (userId) =>
       : 'Diagnostic généré à partir de vos habitudes et causes.',
   }))
 
+/** Récupère l'historique des rapports de diagnostic */
+export const getDiagnosticReports = (userId) =>
+  apiRequest(`/users/${userId}/diagnostic/reports`).then((reports) =>
+    reports.map((report) => ({
+      ...report,
+      score: report.procrastination_score,
+      interpretation: report.dominant_cause
+        ? `Cause dominante détectée : ${report.dominant_cause}`
+        : 'Diagnostic généré à partir de vos habitudes et causes.',
+    }))
+  )
+
 // ─────────────────────────────────────────────
 // API Plans d'action
 // ─────────────────────────────────────────────
 
 /** Génère un plan d'action personnalisé depuis le backend */
-export const generatePlan = (userId) =>
-  apiRequest(`/users/${userId}/plans/generate`, { method: 'POST' })
+export const generatePlan = (userId, reportId) =>
+  apiRequest(
+    `/users/${userId}/plans/generate${reportId ? `?report_id=${reportId}` : ''}`,
+    { method: 'POST' }
+  )
 
 /** Liste tous les plans d'action d'un utilisateur */
-export const getPlans = (userId) =>
-  apiRequest(`/users/${userId}/plans`)
+export const getPlans = (userId, reportId) =>
+  apiRequest(`/users/${userId}/plans${reportId ? `?report_id=${reportId}` : ''}`)
 
 /** Met à jour partiellement un plan (ex: changer son statut) */
 export const updatePlan = (userId, planId, data) =>
   apiRequest(`/users/${userId}/plans/${planId}`, { method: 'PATCH', body: data })
+
+/** Supprime tous les plans d'un rapport */
+export const deleteReportPlans = (userId, reportId) =>
+  apiRequest(`/users/${userId}/plans/report/${reportId}`, { method: 'DELETE' })
 
 // ─────────────────────────────────────────────
 // API Agenda

@@ -50,6 +50,17 @@ const NAV_ITEMS = [
       </svg>
     ),
   },
+  {
+    path: '/app/chrono',
+    label: 'Chrono',
+    icon: (
+      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <circle cx="12" cy="13" r="8" />
+        <path d="M12 13l3-2" />
+        <path d="M9 3h6" />
+      </svg>
+    ),
+  },
 ]
 
 export default function Layout() {
@@ -92,9 +103,7 @@ export default function Layout() {
         <div className="px-6 py-5 border-b border-navy-700">
           <div className="flex items-center gap-2.5">
             {/* Icône cerveau symbolique */}
-            <div className="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center">
-              <span className="text-accent text-sm">⟁</span>
-            </div>
+            <img src="/logo_hackaton.png" alt="NeuroFlow" className="h-12 w-12 object-contain" />
             <div>
               <h1 className="text-slate-200 font-semibold text-sm leading-tight">NeuroFlow</h1>
               <p className="text-muted text-[10px] leading-tight">Anti-procrastination</p>

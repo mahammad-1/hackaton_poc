@@ -12,6 +12,7 @@ const Onboarding = lazy(() => import('./pages/Onboarding.jsx'))
 const Diagnostic = lazy(() => import('./pages/Diagnostic.jsx'))
 const Plans = lazy(() => import('./pages/Plans.jsx'))
 const Agenda = lazy(() => import('./pages/Agenda.jsx'))
+const Chrono = lazy(() => import('./pages/Chrono.jsx'))
 const Dashboard = lazy(() => import('./pages/Dashboard.jsx'))
 
 export default function App() {
@@ -58,6 +59,7 @@ export default function App() {
             <Route path="diagnostic" element={<Diagnostic />} />
             <Route path="plans" element={<Plans />} />
             <Route path="agenda" element={<Agenda />} />
+            <Route path="chrono" element={<Chrono />} />
           </Route>
 
           {/* Fallback : toute URL inconnue → accueil */}

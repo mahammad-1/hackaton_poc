@@ -41,12 +41,12 @@ export default function Diagnostic() {
   // Liste des causes soumises dans la session actuelle
   const [causesSession, setCausesSession] = useState([])
 
-  const { loading, error, saveHabits, loadHabits, saveCauses, loadDiagnostic } = useDiagnostic()
+  const { loading, error, saveHabits, loadHabits, saveCauses, loadDiagnostic, loadDiagnosticReports } = useDiagnostic()
+  const [rapportsHistorique, setRapportsHistorique] = useState([])
 
   // Données du store Zustand
-  const { habits, causes, diagnostic } = useAppStore((state) => ({
+  const { habits, diagnostic } = useAppStore((state) => ({
     habits: state.habits,
-    causes: state.causes,
     diagnostic: state.diagnostic,
   }))
 
@@ -83,14 +83,20 @@ export default function Diagnostic() {
 
   /** Charge le rapport de diagnostic */
   const voirRapport = async () => {
-    await loadDiagnostic()
+    const nouveauRapport = await loadDiagnostic()
+    if (nouveauRapport) {
+      const rapports = await loadDiagnosticReports()
+      if (rapports) setRapportsHistorique(rapports)
+    }
     setOnglet('rapport')
   }
 
-  // Cause dominante = celle avec l'intensité la plus élevée dans les données du store
-  const causeDominante = causes.length > 0
-    ? causes.reduce((max, c) => (c.intensite || 0) > (max.intensite || 0) ? c : max, causes[0])
-    : null
+  useEffect(() => {
+    if (onglet !== 'rapport') return
+    loadDiagnosticReports().then((rapports) => {
+      if (rapports) setRapportsHistorique(rapports)
+    })
+  }, [onglet])
 
   return (
     <div className="p-6 max-w-3xl mx-auto">
@@ -311,50 +317,70 @@ export default function Diagnostic() {
                 </p>
               </div>
 
-              {/* Cause dominante */}
-              {causeDominante && (
-                <div className="card border-accent/30 bg-accent/5">
-                  <p className="text-xs text-accent uppercase tracking-wider mb-2">
-                    Cause dominante
-                  </p>
-                  <h3 className="text-slate-200 font-medium text-lg mb-1">
-                    {LABELS_CAUSES[causeDominante.type] || causeDominante.type}
+              {/* Historique par rapport */}
+              {rapportsHistorique.length > 0 && (
+                <div className="space-y-4">
+                  <h3 className="text-xs text-muted uppercase tracking-wider">
+                    Historique des rapports ({rapportsHistorique.length})
                   </h3>
-                  <p className="text-muted text-sm">
-                    Intensité déclarée : {causeDominante.intensite}/5 dans le contexte "{causeDominante.contexte}"
-                  </p>
-                  {causeDominante.description && (
-                    <p className="text-slate-400 text-sm mt-2 italic">
-                      "{causeDominante.description}"
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {/* Insights sous forme de cards */}
-              {diagnostic.insights && diagnostic.insights.length > 0 && (
-                <div>
-                  <h3 className="text-xs text-muted uppercase tracking-wider mb-3">
-                    Insights personnalisés
-                  </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {diagnostic.insights.map((insight, index) => (
-                      <div
-                        key={index}
-                        className="card animate-fade-up"
-                        style={{ animationDelay: `${index * 0.1}s` }}
-                      >
-                        {/* Icône numérotée */}
-                        <div className="w-6 h-6 rounded-full bg-accent/20 text-accent text-xs
-                                         flex items-center justify-center font-mono mb-2">
-                          {index + 1}
-                        </div>
-                        <p className="text-sm text-slate-300 leading-relaxed">
-                          {typeof insight === 'string' ? insight : insight.text || insight.message}
-                        </p>
+                  {rapportsHistorique.map((rapport, index) => (
+                    <div key={rapport.report_id || index} className="card border border-navy-600/80">
+                      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                        <h4 className="text-sm font-semibold text-slate-100">
+                          Rapport {rapportsHistorique.length - index} · Diagnostic #{rapport.report_id}
+                        </h4>
+                        <span className="badge">Score {Math.round(rapport.score || 0)}</span>
                       </div>
-                    ))}
-                  </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                        <div className="rounded-xl border border-navy-700 bg-navy-900/40 p-3">
+                          <p className="text-xs text-muted uppercase tracking-wider mb-2">
+                            Habitudes ({rapport.habits_snapshot?.length || 0})
+                          </p>
+                          {(rapport.habits_snapshot || []).length === 0 ? (
+                            <p className="text-xs text-muted">Aucune habitude dans ce rapport.</p>
+                          ) : (
+                            <div className="space-y-1.5">
+                              {(rapport.habits_snapshot || []).map((h, hIndex) => (
+                                <p key={h.id || hIndex} className="text-sm text-slate-300">
+                                  - {h.label} <span className="text-xs text-muted">({h.category})</span>
+                                </p>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="rounded-xl border border-navy-700 bg-navy-900/40 p-3">
+                          <p className="text-xs text-muted uppercase tracking-wider mb-2">
+                            Causes ({rapport.causes_snapshot?.length || 0})
+                          </p>
+                          {(rapport.causes_snapshot || []).length === 0 ? (
+                            <p className="text-xs text-muted">Aucune cause dans ce rapport.</p>
+                          ) : (
+                            <div className="space-y-1.5">
+                              {(rapport.causes_snapshot || []).map((c, cIndex) => (
+                                <p key={c.id || cIndex} className="text-sm text-slate-300">
+                                  - {LABELS_CAUSES[c.cause_type] || c.cause_type}
+                                </p>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {rapport.insights && rapport.insights.length > 0 && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {rapport.insights.map((insight, insightIndex) => (
+                            <div key={insightIndex} className="rounded-xl border border-navy-700 bg-navy-900/40 p-3">
+                              <p className="text-sm text-slate-300 leading-relaxed">
+                                {typeof insight === 'string' ? insight : insight.text || insight.message}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               )}
 
