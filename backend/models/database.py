@@ -62,6 +62,7 @@ def init_db():
         CREATE TABLE IF NOT EXISTS action_plans (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            report_id   INTEGER REFERENCES diagnostic_reports(id) ON DELETE SET NULL,
             cause_id    INTEGER REFERENCES procrastination_causes(id) ON DELETE SET NULL,
             title       TEXT NOT NULL,
             protocol    TEXT NOT NULL, -- micro_intervention / cbt / graduated_exposure / reward_loop
@@ -114,6 +115,22 @@ def init_db():
             last_checked_date TEXT,
             UNIQUE(user_id, habit_id)
         );
+
+        -- Rapports de diagnostic historisés
+        CREATE TABLE IF NOT EXISTS diagnostic_reports (
+            id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id                 INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            dominant_cause          TEXT,
+            dominant_habit_category TEXT,
+            most_vulnerable_time    TEXT,
+            most_vulnerable_context TEXT,
+            procrastination_score   REAL NOT NULL,
+            recommended_protocols   TEXT NOT NULL, -- JSON list[str]
+            insights                TEXT NOT NULL, -- JSON list[str]
+            habits_snapshot         TEXT NOT NULL DEFAULT '[]', -- JSON list[dict]
+            causes_snapshot         TEXT NOT NULL DEFAULT '[]', -- JSON list[dict]
+            created_at              TEXT DEFAULT (datetime('now'))
+        );
         """)
  
         # Migration : ajouter password_hash si la colonne n'existe pas encore
@@ -121,6 +138,19 @@ def init_db():
         if "password_hash" not in cols:
             conn.execute("ALTER TABLE users ADD COLUMN password_hash TEXT")
             print("🔄 Migration : colonne password_hash ajoutée.")
+
+        action_plan_cols = [r[1] for r in conn.execute("PRAGMA table_info(action_plans)").fetchall()]
+        if "report_id" not in action_plan_cols:
+            conn.execute("ALTER TABLE action_plans ADD COLUMN report_id INTEGER REFERENCES diagnostic_reports(id) ON DELETE SET NULL")
+            print("🔄 Migration : colonne report_id ajoutée dans action_plans.")
+
+        diagnostic_report_cols = [r[1] for r in conn.execute("PRAGMA table_info(diagnostic_reports)").fetchall()]
+        if "habits_snapshot" not in diagnostic_report_cols:
+            conn.execute("ALTER TABLE diagnostic_reports ADD COLUMN habits_snapshot TEXT NOT NULL DEFAULT '[]'")
+            print("🔄 Migration : colonne habits_snapshot ajoutée dans diagnostic_reports.")
+        if "causes_snapshot" not in diagnostic_report_cols:
+            conn.execute("ALTER TABLE diagnostic_reports ADD COLUMN causes_snapshot TEXT NOT NULL DEFAULT '[]'")
+            print("🔄 Migration : colonne causes_snapshot ajoutée dans diagnostic_reports.")
  
     print(f"✅ Base de données initialisée : {DB_PATH}")
  

@@ -44,6 +44,7 @@ class CauseOut(CauseCreate):
 
 # ─── ACTION PLANS ─────────────────────────────────────────
 class ActionPlanCreate(BaseModel):
+    report_id: Optional[int] = None
     cause_id: Optional[int] = None
     title: str = Field(..., min_length=1, max_length=200)
     protocol: Literal["micro_intervention", "cbt", "graduated_exposure", "reward_loop"]
@@ -101,6 +102,7 @@ class DailyLogOut(DailyLogCreate):
 
 # ─── DIAGNOSTIC REPORT ────────────────────────────────────
 class DiagnosticReport(BaseModel):
+    report_id: Optional[int] = None
     user_id: int
     dominant_cause: Optional[str]
     dominant_habit_category: Optional[str]
@@ -109,3 +111,9 @@ class DiagnosticReport(BaseModel):
     procrastination_score: float  # 0-100
     recommended_protocols: list[str]
     insights: list[str]
+
+
+class DiagnosticReportHistoryItem(DiagnosticReport):
+    habits_snapshot: list[dict] = []
+    causes_snapshot: list[dict] = []
+    created_at: str

@@ -1,5 +1,13 @@
 from fastapi import APIRouter, HTTPException
-from models.schemas import BadHabitCreate, BadHabitOut, CauseCreate, CauseOut, DiagnosticReport
+import json
+from models.schemas import (
+    BadHabitCreate,
+    BadHabitOut,
+    CauseCreate,
+    CauseOut,
+    DiagnosticReport,
+    DiagnosticReportHistoryItem,
+)
 from models.database import get_db
 from services.diagnostic import compute_diagnostic
 
@@ -110,4 +118,45 @@ def get_diagnostic(user_id: int):
                 "SELECT * FROM bad_habits WHERE user_id = ?", (user_id,)
             ).fetchall()
         ]
-    return compute_diagnostic(user_id, causes, habits)
+        report = compute_diagnostic(user_id, causes, habits)
+        cur = conn.execute(
+            """INSERT INTO diagnostic_reports
+               (user_id, dominant_cause, dominant_habit_category, most_vulnerable_time, most_vulnerable_context,
+                procrastination_score, recommended_protocols, insights, habits_snapshot, causes_snapshot)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                report.user_id,
+                report.dominant_cause,
+                report.dominant_habit_category,
+                report.most_vulnerable_time,
+                report.most_vulnerable_context,
+                report.procrastination_score,
+                json.dumps(report.recommended_protocols),
+                json.dumps(report.insights),
+                json.dumps(habits),
+                json.dumps(causes),
+            ),
+        )
+        report.report_id = cur.lastrowid
+    return report
+
+
+@router.get("/diagnostic/reports", response_model=list[DiagnosticReportHistoryItem])
+def list_diagnostic_reports(user_id: int):
+    with get_db() as conn:
+        _check_user(conn, user_id)
+        rows = conn.execute(
+            "SELECT * FROM diagnostic_reports WHERE user_id = ? ORDER BY id DESC",
+            (user_id,),
+        ).fetchall()
+
+    reports = []
+    for row in rows:
+        item = dict(row)
+        item["report_id"] = item["id"]
+        item["recommended_protocols"] = json.loads(item.get("recommended_protocols") or "[]")
+        item["insights"] = json.loads(item.get("insights") or "[]")
+        item["habits_snapshot"] = json.loads(item.get("habits_snapshot") or "[]")
+        item["causes_snapshot"] = json.loads(item.get("causes_snapshot") or "[]")
+        reports.append(item)
+    return reports

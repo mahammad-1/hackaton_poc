@@ -32,6 +32,18 @@ const useAppStore = create(
       logs: [],              // Entrées du journal quotidien
       stats: null,           // Stats agrégées (streaks, moyennes sur 30j)
 
+      // ── État chrono anti-procrastination ─────────────────────────────
+      focusSession: {
+        active: false,
+        mode: null,
+        durationMin: 0,
+        durationSec: 0,
+        endsAt: null,
+        status: 'idle', // idle | running | completed | failed
+        message: null,
+      },
+      focusHistory: [],
+
       // ── Actions (fonctions pour modifier l'état) ─────────────────────
 
       /** Définit l'utilisateur connecté après création ou récupération */
@@ -49,6 +61,16 @@ const useAppStore = create(
           agendaBlocks: [],
           logs: [],
           stats: null,
+          focusSession: {
+            active: false,
+            mode: null,
+            durationMin: 0,
+            durationSec: 0,
+            endsAt: null,
+            status: 'idle',
+            message: null,
+          },
+          focusHistory: [],
         }),
 
       /** Met à jour les habitudes dans le store */
@@ -94,6 +116,57 @@ const useAppStore = create(
       /** Stocke les statistiques agrégées */
       setStats: (stats) => set({ stats }),
 
+      startFocusSession: ({ mode, durationMin, durationSec, endsAt }) =>
+        set({
+          focusSession: {
+            active: true,
+            mode,
+            durationMin,
+            durationSec: durationSec ?? Math.round((durationMin || 0) * 60),
+            endsAt,
+            status: 'running',
+            message: null,
+          },
+        }),
+
+      completeFocusSession: () =>
+        set((state) => ({
+          focusSession: {
+            ...state.focusSession,
+            active: false,
+            status: 'completed',
+            message: 'Session réussie. Bravo, engagement respecté.',
+          },
+        })),
+
+      failFocusSession: (message = "Engagement non respecté : vous avez quitté la session avant la fin.") =>
+        set((state) => ({
+          focusSession: {
+            ...state.focusSession,
+            active: false,
+            status: 'failed',
+            message,
+          },
+        })),
+
+      resetFocusSession: () =>
+        set({
+          focusSession: {
+            active: false,
+            mode: null,
+            durationMin: 0,
+            durationSec: 0,
+            endsAt: null,
+            status: 'idle',
+            message: null,
+          },
+        }),
+
+      addFocusHistory: (entry) =>
+        set((state) => ({
+          focusHistory: [entry, ...state.focusHistory].slice(0, 20),
+        })),
+
       /** Indique que la restauration depuis localStorage est terminée */
       setHasHydrated: (value) => set({ hasHydrated: value }),
     }),
@@ -103,6 +176,7 @@ const useAppStore = create(
       partialize: (state) => ({
         userId: state.userId,
         userProfile: state.userProfile,
+        focusHistory: state.focusHistory,
       }),
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true)
